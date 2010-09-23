@@ -23,14 +23,12 @@ Philosophies:
 * Prevent the enemy from becoming too strong
 
 """
-
-
 from PlanetWars import PlanetWars, log, predict_state
 
 def do_turn(pw):
   pw_future=predict_state(pw,MAX_TURNS)
   if pw.my_production >= 1.5*pw.enemy_production:
-    num_fleets=1
+    num_fleets=2
   else:
     num_fleets=5
 
@@ -41,35 +39,48 @@ def do_turn(pw):
   source = -1
   source_score = -999999.0
   source_num_ships = 0
+  s=None
   for p in pw.my_planets:
-    score = p.num_ships/(1+p.growth_rate)
+    score = float(p.num_ships)/(1+p.growth_rate)
     if score > source_score:
       source_score = score
       source = p.id
       s=p
       source_num_ships = p.num_ships
 
-  log('finding dest')
-  # (3) Find the weakest enemy or neutral planet.
-  dest = -1
-  dest_score = -999999.0
-  not_my_planets=set(pw.planets)-pw.my_planets
-  for p in not_my_planets:
-    score = (1+p.growth_rate) / (1+p.num_ships)/(1+pw.distance(s,p))
-    if score > dest_score:
-      dest_score = score
-      dest = p.id
-  
-  log('sending')
-  # (4) Send half the ships from my strongest planet to the weakest
-  # planet that I do not own.
-  if source >= 0 and dest >= 0:
-    num_ships = source_num_ships / 2
-    pw.order(source, dest, num_ships)
+  if s is not None:
+    log('finding dest')
+    # (3) Find the weakest enemy or neutral planet.
+    dest = -1
+    dest_score = -999999.0
+    not_my_planets=set(pw.planets)-pw.my_planets
+    for p in not_my_planets:
+      score = float(1+p.growth_rate) / (1+p.num_ships)/(1+pw.distance(s,p))
+      if score > dest_score and not any(f.destination==p.id for f in pw.my_fleets):
+        dest_score = score
+        dest = p.id
+
+    log('sending')
+    # (4) Send half the ships from my strongest planet to the weakest
+    # planet that I do not own.
+    if source >= 0 and dest >= 0:
+      num_ships = source_num_ships / 2
+      pw.order(source, dest, num_ships)
 
 
 MAX_TURNS=None
-from itertools import product
+#from itertools import product
+# needed because they only support python 2.5!
+def product(*args, **kwds):
+    # product('ABCD', 'xy') --> Ax Ay Bx By Cx Cy Dx Dy
+    # product(range(2), repeat=3) --> 000 001 010 011 100 101 110 111
+    pools = map(tuple, args) * kwds.get('repeat', 1)
+    result = [[]]
+    for pool in pools:
+        result = [x+[y] for x in result for y in pool]
+    for prod in result:
+        yield tuple(prod)
+
 def main():
   global MAX_TURNS
   map_data = ''
@@ -82,7 +93,7 @@ def main():
       pw = PlanetWars()
       pw.parse_game_state(map_data)
       if MAX_TURNS is None:
-        for p,q in product(pw.planets[:3],repeat=2):
+        for p,q in product(pw.planets,repeat=2):
           d=pw.distance(p,q)
           if d>MAX_TURNS:
             MAX_TURNS=d

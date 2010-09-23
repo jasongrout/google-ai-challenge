@@ -8,8 +8,9 @@ from sys import stderr
 
 def log_file(s):
   s=str(s)+'\n'
-  with open('test','a') as f:
-    f.write(s)
+  f=open('test','a')
+  f.write(s)
+  f.close()
   stderr.write(s)
 
 def log_dummy(s):
