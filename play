@@ -1,0 +1,3 @@
+#!/bin/sh
+
+java -jar tools/PlayGame.jar maps/map9.txt 200 200 log.txt "python $1" "python $2" | java -jar tools/ShowGame.jar
