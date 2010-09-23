@@ -1,0 +1,3 @@
+#!/bin/sh
+
+./tcp 72.44.46.68 995 `cat tcp-username` -p `cat tcp-password` ./MyBot.py
