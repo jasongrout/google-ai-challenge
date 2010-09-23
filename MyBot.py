@@ -107,7 +107,7 @@ def main():
   while True:
     current_line = stdin.readline()
     if len(current_line) >= 2 and current_line.startswith("go"):
-      log('Turn %d '%turn+'='*30)
+      log('Turn %d '%turn+'='*30+'Turn %d'%turn)
       pw = PlanetWars()
       pw.parse_game_state(map_data)
       if MAX_TURNS is None:
@@ -115,6 +115,8 @@ def main():
           d=pw.distance(p,q)
           if d>MAX_TURNS:
             MAX_TURNS=d
+      if MAX_TURNS>10:
+        MAX_TURNS=10
         log("predicting %s turns in the future"%MAX_TURNS)
       do_turn(pw)
       pw.finish()
