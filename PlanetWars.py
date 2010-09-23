@@ -104,7 +104,7 @@ def predict_state(pw, turns):
         p.num_ships=max_force_ships
     # delete old fleets
     pw.fleets=[f for f in pw.fleets if f.turns_left>1]
-
+  return  state
 
 class PlanetWars:
   """

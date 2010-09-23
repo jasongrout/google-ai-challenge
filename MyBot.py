@@ -3,6 +3,7 @@
 from __future__ import division
 
 from sys import stdin
+from copy import copy
 
 """
 Strategies to implement:
@@ -34,12 +35,13 @@ def do_turn(pw):
 
   if len(pw.my_fleets) >= num_fleets:
     return
-  log('finding source')
+  #log('finding source')
   # (2) Find my strongest planet.
   source = -1
   source_score = -999999.0
   source_num_ships = 0
   s=None
+  dest=None
   for p in pw.my_planets:
     score = float(p.num_ships)/(1+p.growth_rate)
     if score > source_score:
@@ -49,7 +51,7 @@ def do_turn(pw):
       source_num_ships = p.num_ships
 
   if s is not None:
-    log('finding dest')
+    #log('finding dest')
     # (3) Find the weakest enemy or neutral planet.
     dest = -1
     dest_score = -999999.0
@@ -60,14 +62,30 @@ def do_turn(pw):
         dest_score = score
         dest = p.id
 
-    log('sending')
+    #log('sending')
     # (4) Send half the ships from my strongest planet to the weakest
     # planet that I do not own.
+    num_ships=0
     if source >= 0 and dest >= 0:
       num_ships = source_num_ships / 2
       pw.order(source, dest, num_ships)
 
-
+  my_planets=copy(pw.my_planets)
+  evacuate=set()
+  # if any of my planets is dying on the next turn, evacuate
+  for p in my_planets:
+    new_owner=pw_future[1].planets[p.id].owner
+    if new_owner!=1:
+      evacuate.add(p)
+  my_planets-=evacuate
+  for p in evacuate:
+    log('evacuating %d to %d'%(p.id,dest))
+    if source==p.id:
+      p.num_ships-=num_ships
+    if p.num_ships>0:
+      dest=min(my_planets, key=lambda x: pw.distance(p,x))
+      pw.order(p.id, dest.id, p.num_ships)
+      
 MAX_TURNS=None
 #from itertools import product
 # needed because they only support python 2.5!
