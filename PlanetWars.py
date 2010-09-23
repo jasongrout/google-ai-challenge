@@ -16,8 +16,12 @@ def log_file(s):
 def log_dummy(s):
   pass
 
+def log_stderr(s):
+  print >> stderr, s
+
 log=log_file
 log=log_dummy
+log=log_stderr
 
 
 class Fleet:
@@ -53,7 +57,6 @@ def split(lst, key):
   ret=defaultdict(list)
   for i in lst:
     ret[key(i)].append(i)
-  log(ret)
   return ret
 
 def predict_state(pw, turns):
@@ -64,18 +67,18 @@ def predict_state(pw, turns):
   
   # calculate next state
   for turn in range(1,turns):
-    log('predicting turn %d'%turn)
+    #log('predicting turn %d'%turn)
     state.append(deepcopy(state[-1]))
     pw=state[-1]
-    log('  new state created')
+    #log('  new state created')
     # make fleets depart -- nothing to do
     # advance fleets
-    log('  advancing %s fleets'%len(pw.fleets))
+    #log('  advancing %s fleets'%len(pw.fleets))
     for f in pw.fleets:
       f.turns_left-=1
 
     # grow planet populations
-    log('  growing %s planets'%len(pw.planets))
+    #log('  growing %s planets'%len(pw.planets))
     for p in pw.planets:
       if p.owner>0:
         p.num_ships+=p.growth_rate
@@ -92,7 +95,6 @@ def predict_state(pw, turns):
       for f in fleets:
         forces[f.owner]+=f.num_ships
       force_list=sorted(forces.items(), key=lambda x: x[1])
-      log('test')
       max_force_player, max_force_ships=force_list[-1]
       if len(force_list)>1:
         max_force_ships-=force_list[-2][1]
@@ -163,8 +165,10 @@ class PlanetWars:
 
   def order(self, source_planet, destination_planet, num_ships):
     log("New fleet: %s %s, ships=%s"%(source_planet, destination_planet, num_ships))
-    stdout.write("%d %d %d\n" % \
-     (source_planet, destination_planet, num_ships))
+    s="%d %d %d\n" % \
+     (source_planet, destination_planet, num_ships)
+    stdout.write(s)
+    log(s)
     stdout.flush()
 
   def is_alive(self, player_id):
