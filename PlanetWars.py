@@ -130,8 +130,7 @@ class PlanetWars:
     stdout.write("go\n")
     stdout.flush()
 
-  # unused?
-  def ToString(self):
+  def __str__(self):
     s = ''
     for p in self.planets:
       s += "P %f %f %d %d %d\n" % \
