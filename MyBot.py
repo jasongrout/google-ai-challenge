@@ -27,10 +27,16 @@ Philosophies:
 from PlanetWars import PlanetWars, log, predict_state, Planet, Fleet, planet_distance_list
 
 def do_turn(pw):
-  log('planets: %s'%[(p.id, p.num_ships) for p in pw.my_planets])
-  
+  log('planets: %s'%[p.num_ships for p in pw.my_planets])
+  log('in air: %s'%sum(f.num_ships for f in pw.my_fleets))
+
   pw.new_fleets=set()
   pw_future=predict_state(pw,MAX_TURNS)
+  enemy_fleets=sorted(pw.enemy_fleets,key=lambda x: x.num_ships)
+  if len(enemy_fleets)>0:
+    mode_enemy_fleet=enemy_fleets[len(enemy_fleets)//2].num_ships
+  else:
+    mode_enemy_fleet=1
 
   # Give the planets some metadata
   for p in pw.planets:
@@ -38,80 +44,71 @@ def do_turn(pw):
                 else -i.planets[p.id].num_ships for i in pw_future]
     p.close=planet_distance_list(pw, p.id)
     p.my_close=[i for i in p.close if i in pw.my_planet_ids]
+    p.not_my_close=[i for i in p.close if i not in pw.my_planet_ids]
 
-  if pw.my_production >= 1.5*pw.enemy_production:
-    num_fleets=2
-  else:
+  if pw.my_production >= 3*pw.enemy_production:
     num_fleets=5
+  else:
+    num_fleets=30
 
   if len(pw.my_fleets) >= num_fleets:
     return
-  if len(pw.my_planets)==0:
+  if len(pw.my_planets)==0 or len(pw.not_my_planets)==0:
     return
 
-  target_planets=set(pw.planets)-pw.my_planets
-  #target_planets-=set(pw.planets[f.destination] for f in pw.my_fleets)
-
-  # get the top targets
-  dest_score=lambda p: float(p.growth_rate)/(1+p.num_ships)/(1+min([pw.distance(i,p) for i in pw.my_planets]))
-  target=sorted(target_planets, key=dest_score)[-2:]
-
-  # Now how can I conquer these planets?
-  for p in reversed(target):
-    # select 5 closest planets - what can they give up?
-    donors=[pw.planets[i] for i in p.my_close[:2]]
-    attack_fleets=[]
-    for q in donors:
-      if q.future[5]>q.num_ships:
-        # if we're growing on this planet, donate something
-        ships=int(q.future[0]*0.5)
+  for p in pw.my_planets:
+    #what is closest non-conquered planet?
+    if len(pw.my_fleets)>=num_fleets:
+      return
+    if p.num_ships>0:
+      if mode_enemy_fleet<20:
+        ships=int(p.num_ships-mode_enemy_fleet*4)
+      else:
+        ships=int(p.num_ships//2)
+      if ships<1:
+        continue
+      def dest_score(t):
+        d=pw.distance(t,p)
+        fut=min(d,MAX_TURNS-1)
+        t_ships=-t.future[fut]+3
+        if t_ships==0:
+          t_ships=1
+        return float(t.growth_rate**2+t.owner)/(t_ships)/(1+d**2)
+      #dest_score=lambda x: float(x.growth_rate**2)/(1+x.num_ships)/(1+pw.distance(x,p)**4)
+      target=sorted(pw.planets, key=dest_score,reverse=True)
+      #log([(i, pw.distance(i,p), dest_score(i)) for i in target])
+      for t in target:
         if ships==0:
+          break
+        if t.id==p.id:
+          break
+        d=pw.distance(t,p)
+        fut=min(d,MAX_TURNS-1)
+        t_ships=-t.future[fut]+3
+        if ships<t_ships*0.05:
           continue
-        attack_fleets.append((q,ships))
-    if sum(i[1] for i in attack_fleets)>1.2*p.future[5]:
-      for q, ships in attack_fleets:
-        pw.order(q,p, ships)
-        pw.new_fleets.add(Fleet(1, ships, q.id, p.id, 
-                                pw.distance(p,q), pw.distance(p,q)))
-        for i in range(len(q.future)):
-          q.future[i]-=ships
-        #q.num_ships-=ships
-
-#   # identify my planets will have a surplus after 5 turns
-#   surplus=set([pw.planets[p] for p in pw.my_planet_ids & pw_future[5].my_planet_ids])
-
-#   if len(surplus)>0:
-#     surpluskey=lambda p: float(p.num_ships)/( (p.future[5]-p.num_ships) if p.future[5]!=p.num_ships else 0.1)
-#     surplus=sorted(surplus, key=surpluskey)
-#     # (3) Find the weakest enemy or neutral planet, as long as I'm not
-#     # already sending a fleet there.
-#     if len(dest)>0:
-#       #log('sending')
-#       # (4) Send half the ships from my strongest planet to the weakest
-#       # planet that I do not own.
-#       for s in surplus[-2:]:
-# #        ships_to_spare=ceil(min(0.9*s.num_ships,
-# #                           (pw_future[5].planets[s.id].num_ships-s.num_ships)*3))
-#         ships_to_spare=0.5*s.num_ships
-#         if ships_to_spare>5:
-#           d=min(dest, key=lambda p: pw.distance(p,s))
-#           pw.order(s.id, d.id, ships_to_spare)
-#           log('new fleet: %d %d: %d'%(s.id, d.id, ships_to_spare))
-#           pw.new_fleets.add(Fleet(1, ships_to_spare, s.id, d.id, 
-#                                   pw.distance(d,s), pw.distance(d,s)))
+        else:
+          t_ships=min(ships,t_ships)
+        if t_ships>0:
+          pw.order(p,t, t_ships)
+          num_fleets-=1
+          for i in range(d,MAX_TURNS):
+            t.future[i]-=t_ships
+          for i in range(1,MAX_TURNS):
+            p.future[i]-=t_ships
+          ships-=t_ships
+          p.num_ships-=t_ships
 
   my_planets=copy(pw.my_planets)
   evacuate=set()
   # if any of my planets is dying on the next turn, evacuate
   for p in my_planets:
-    new_owner=pw_future[1].planets[p.id].owner
-    if new_owner!=1:
+    if p.future[1]<0:
       evacuate.add(p)
   my_planets-=evacuate
   if len(my_planets)==0:
     my_planets=set([pw.planets[0]])
   for p in evacuate:
-    p.num_ships -= sum(f.num_ships for f in pw.new_fleets if f.source==p.id)
     if p.num_ships>0:
       dest=min(my_planets, key=lambda x: pw.distance(p,x))
       log('evacuating %d to %d'%(p.id,dest.id))
@@ -146,8 +143,8 @@ def main():
           d=pw.distance(p,q)
           if d>MAX_TURNS:
             MAX_TURNS=d
-      if MAX_TURNS>10:
-        MAX_TURNS=10
+      #if MAX_TURNS>10:
+      #  MAX_TURNS=10
         log("predicting %s turns in the future"%MAX_TURNS)
       do_turn(pw)
       pw.finish()
