@@ -108,6 +108,16 @@ def predict_state(pw, turns):
     pw.fleets=[f for f in pw.fleets if f.turns_left>1]
   return  state
 
+PLANET_DISTANCE_DICT=dict()
+
+def planet_distance_list(pw, p_id):
+  if p_id not in PLANET_DISTANCE_DICT:
+    PLANET_DISTANCE_DICT[p_id]=[i.id for i in sorted(pw.planets, 
+                                                     key=lambda x:pw.distance(p_id, x))]
+  return PLANET_DISTANCE_DICT[p_id]
+
+DISTANCE_CACHE=dict()
+
 class PlanetWars:
   """
   Represents the game state.
@@ -116,7 +126,6 @@ class PlanetWars:
   def __init__(self):
     self.planets = []
     self.fleets = []
-    self._distance_cache=dict()
 
   @property
   def my_planets(self):
@@ -155,24 +164,28 @@ class PlanetWars:
       source = self.planets[source]
     if not isinstance(destination, Planet):
       destination = self.planets[destination]
-    if (source.id, destination.id) in self._distance_cache:
-      return self._distance_cache[(source.id, destination.id)]
 
-    dx = source.x - destination.x
-    dy = source.y - destination.y
-    distance= int(ceil(sqrt(dx * dx + dy * dy)))
+    global DISTANCE_CACHE
 
-    self._distance_cache[(source.id, destination.id)]=distance
-    self._distance_cache[(destination.id, source.id)]=distance
+    if (source.id, destination.id) not in DISTANCE_CACHE:
+
+      dx = source.x - destination.x
+      dy = source.y - destination.y
+      distance= int(ceil(sqrt(dx * dx + dy * dy)))
+
+      DISTANCE_CACHE[(source.id, destination.id)]=distance
+      DISTANCE_CACHE[(destination.id, source.id)]=distance
     #log('distance between %s %s: %s'%(source,destination, distance))
-    return distance
+    return DISTANCE_CACHE[(source.id, destination.id)]
 
-  def order(self, source_planet, destination_planet, num_ships):
-    log("New fleet: %s %s, ships=%s"%(source_planet, destination_planet, num_ships))
-    s="%d %d %d\n" % \
-     (source_planet, destination_planet, num_ships)
+  def order(self, source, dest, num_ships):
+    if isinstance(source, Planet):
+      source=source.id
+    if isinstance(dest, Planet):
+      dest=dest.id
+    log("New fleet: %s %s, ships=%s"%(source, dest, num_ships))
+    s="%d %d %d\n" % (source, dest, num_ships)
     stdout.write(s)
-    log(s)
     stdout.flush()
 
   def is_alive(self, player_id):
