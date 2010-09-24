@@ -123,6 +123,10 @@ class PlanetWars:
     return set([p for p in self.planets if p.owner==1])
 
   @property
+  def my_planet_ids(self):
+    return set([p.id for p in self.my_planets])
+
+  @property
   def neutral_planets(self):
     return set([p for p in self.planets if p.owner==0])
 
