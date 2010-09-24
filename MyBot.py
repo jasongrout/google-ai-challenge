@@ -8,14 +8,18 @@ from copy import copy
 """
 Strategies to implement:
 
-* Using the knowledge about fleets, predict the game state in the future
 * Create a list of high priority planets for me and for the enemy
 * expansion phase when the enemy does not have that many planets (i.e., at beginning) or when the enemy does not have much strength
-* evacuate planet if it is doomed
-* Calculate the growth rate for me for every planet (i.e., how many ships it is producing for me).  Enemy planets count as negative growth rate.  Neutral planets count as 0 growth rate.
 * Calculate the potential growth rate and cost of taking over any planet
 * Calculate the risk of any of my planets, based on the fleets coming in.  Determine if I should "save" the planet or evacuate the planet.
 * Move headquarters if needed (maybe at every stage, any planet with more than X ships could move 3/4 of them to another planet to try to take over it?)
+
+Done
+
+* Using the knowledge about fleets, predict the game state in the future
+* evacuate planet if it is doomed
+* Calculate the growth rate for me for every planet (i.e., how many ships it is producing for me).  Enemy planets count as negative growth rate.  Neutral planets count as 0 growth rate.
+
 
 
 Philosophies:
@@ -27,7 +31,14 @@ Philosophies:
 from PlanetWars import PlanetWars, log, predict_state
 
 def do_turn(pw):
+  log('planets: %s'%[(p.id, p.num_ships) for p in pw.my_planets])
+  log('fleets: %s'%[(f.num_ships, f.source, f.destination) for f in pw.my_fleets])
+
   pw_future=predict_state(pw,MAX_TURNS)
+  for p in pw.planets:
+    p.future=[i.planets[p.id].num_ships if i.planets[p.id].owner==1 \
+                else -i.planets[p.id].num_ships for i in pw_future]
+
   if pw.my_production >= 1.5*pw.enemy_production:
     num_fleets=2
   else:
@@ -37,6 +48,7 @@ def do_turn(pw):
     return
   #log('finding source')
   # (2) Find my strongest planet.
+
   source = -1
   source_score = -999999.0
   source_num_ships = 0
