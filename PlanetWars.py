@@ -136,6 +136,9 @@ class PlanetWars:
     return set([p.id for p in self.my_planets])
 
   @property
+  def not_my_planets(self):
+    return set([p for p in self.planets if p.owner!=1])
+  @property
   def neutral_planets(self):
     return set([p for p in self.planets if p.owner==0])
 
@@ -183,7 +186,7 @@ class PlanetWars:
       source=source.id
     if isinstance(dest, Planet):
       dest=dest.id
-    log("New fleet: %s %s, ships=%s"%(source, dest, num_ships))
+    log("New fleet: %s %s, ships=%s, distance=%s"%(source, dest, num_ships,self.distance(source,dest)))
     s="%d %d %d\n" % (source, dest, num_ships)
     stdout.write(s)
     stdout.flush()
