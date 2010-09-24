@@ -42,7 +42,7 @@ def do_turn(pw):
   if pw.my_production >= 1.5*pw.enemy_production:
     num_fleets=2
   else:
-    num_fleets=5
+    num_fleets=4
 
   if len(pw.my_fleets) >= num_fleets:
     return
