@@ -90,6 +90,8 @@ def do_turn(pw):
     if new_owner!=1:
       evacuate.add(p)
   my_planets-=evacuate
+  if len(my_planets)==0:
+    my_planets=set([pw.planets[0]])
   for p in evacuate:
     log('evacuating %d to %d'%(p.id,dest))
     if source==p.id:
