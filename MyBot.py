@@ -4,7 +4,7 @@ from __future__ import division
 
 from sys import stdin
 from copy import copy
-
+from math import ceil
 """
 Strategies to implement:
 
@@ -24,10 +24,17 @@ Philosophies:
 * Prevent the enemy from becoming too strong
 
 """
-from PlanetWars import PlanetWars, log, predict_state
+from PlanetWars import PlanetWars, log, predict_state, Planet, Fleet
 
 def do_turn(pw):
+  log('planets: %s'%[(p.id, p.num_ships) for p in pw.my_planets])
+  
+  pw.new_fleets=set()
   pw_future=predict_state(pw,MAX_TURNS)
+  for p in pw.planets:
+    p.future=[i.planets[p.id].num_ships if i.planets[p.id].owner==1 \
+                else -i.planets[p.id].num_ships for i in pw_future]
+
   if pw.my_production >= 1.5*pw.enemy_production:
     num_fleets=2
   else:
@@ -35,40 +42,34 @@ def do_turn(pw):
 
   if len(pw.my_fleets) >= num_fleets:
     return
-  #log('finding source')
-  # (2) Find my strongest planet.
-  source = -1
-  source_score = -999999.0
-  source_num_ships = 0
-  s=None
-  dest=None
-  for p in pw.my_planets:
-    score = float(p.num_ships)/(1+p.growth_rate)
-    if score > source_score:
-      source_score = score
-      source = p.id
-      s=p
-      source_num_ships = p.num_ships
 
-  if s is not None:
-    #log('finding dest')
-    # (3) Find the weakest enemy or neutral planet.
-    dest = -1
-    dest_score = -999999.0
-    not_my_planets=set(pw.planets)-pw.my_planets
-    for p in not_my_planets:
-      score = float(1+p.growth_rate) / (1+p.num_ships)/(1+pw.distance(s,p))
-      if score > dest_score and not any(f.destination==p.id for f in pw.my_fleets):
-        dest_score = score
-        dest = p.id
+  # identify my planets will have a surplus after 5 turns
+  surplus=set([pw.planets[p] for p in pw.my_planet_ids & pw_future[5].my_planet_ids])
 
-    #log('sending')
-    # (4) Send half the ships from my strongest planet to the weakest
-    # planet that I do not own.
-    num_ships=0
-    if source >= 0 and dest >= 0:
-      num_ships = source_num_ships / 2
-      pw.order(source, dest, num_ships)
+  if len(surplus)>0:
+    surplus=sorted(surplus, key=lambda p: float(p.num_ships)/(p.future[5]-p.num_ships+1))
+    # (3) Find the weakest enemy or neutral planet, as long as I'm not
+    # already sending a fleet there.
+    target_planets=set(pw.planets)-pw.my_planets
+    target_planets-=set(pw.planets[f.destination] for f in pw.my_fleets)
+    
+    # get the top 5 targets
+    dest_score=lambda p: float(p.growth_rate)/(1+p.num_ships)/(1+min([pw.distance(i,p) for i in surplus]))
+    dest=sorted(target_planets, key=dest_score)[-2:]
+    if len(dest)>0:
+      #log('sending')
+      # (4) Send half the ships from my strongest planet to the weakest
+      # planet that I do not own.
+      for s in surplus[-2:]:
+#        ships_to_spare=ceil(min(0.9*s.num_ships,
+#                           (pw_future[5].planets[s.id].num_ships-s.num_ships)*3))
+        ships_to_spare=0.5*s.num_ships
+        if ships_to_spare>5:
+          d=min(dest, key=lambda p: pw.distance(p,s))
+          pw.order(s.id, d.id, ships_to_spare)
+          log('new fleet: %d %d: %d'%(s.id, d.id, ships_to_spare))
+          pw.new_fleets.add(Fleet(1, ships_to_spare, s.id, d.id, 
+                                  pw.distance(d,s), pw.distance(d,s)))
 
   my_planets=copy(pw.my_planets)
   evacuate=set()
@@ -78,12 +79,13 @@ def do_turn(pw):
     if new_owner!=1:
       evacuate.add(p)
   my_planets-=evacuate
+  if len(my_planets)==0:
+    my_planets=set([pw.planets[0]])
   for p in evacuate:
-    log('evacuating %d to %d'%(p.id,dest))
-    if source==p.id:
-      p.num_ships-=num_ships
+    p.num_ships -= sum(f.num_ships for f in pw.new_fleets if f.source==p.id)
     if p.num_ships>0:
       dest=min(my_planets, key=lambda x: pw.distance(p,x))
+      log('evacuating %d to %d'%(p.id,dest.id))
       pw.order(p.id, dest.id, p.num_ships)
       
 MAX_TURNS=None
