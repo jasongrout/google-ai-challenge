@@ -24,16 +24,20 @@ Philosophies:
 * Prevent the enemy from becoming too strong
 
 """
-from PlanetWars import PlanetWars, log, predict_state, Planet, Fleet
+from PlanetWars import PlanetWars, log, predict_state, Planet, Fleet, planet_distance_list
 
 def do_turn(pw):
   log('planets: %s'%[(p.id, p.num_ships) for p in pw.my_planets])
   
   pw.new_fleets=set()
   pw_future=predict_state(pw,MAX_TURNS)
+
+  # Give the planets some metadata
   for p in pw.planets:
     p.future=[i.planets[p.id].num_ships if i.planets[p.id].owner==1 \
                 else -i.planets[p.id].num_ships for i in pw_future]
+    p.close=planet_distance_list(pw, p.id)
+    p.my_close=[i for i in p.close if i in pw.my_planet_ids]
 
   if pw.my_production >= 1.5*pw.enemy_production:
     num_fleets=2
@@ -41,6 +45,8 @@ def do_turn(pw):
     num_fleets=5
 
   if len(pw.my_fleets) >= num_fleets:
+    return
+  if len(pw.my_planets)==0:
     return
 
   # identify my planets will have a surplus after 5 turns
