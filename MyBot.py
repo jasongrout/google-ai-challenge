@@ -45,11 +45,15 @@ def do_turn(pw):
   pw.new_fleets=set()
   pw_future=predict_state(pw,MAX_TURNS)
 
-  # figure out heuristically what fleet size the enemy is mostly using
+  # figure out heuristically what bombardment size the enemy is mostly using 
+  # against planets they don't own
+  # assume enemy player id is 2 here
   global enemy_fleet_size
-  enemy_fleets=sorted(pw.enemy_fleets,key=lambda x: x.num_ships)
+  enemy_fleets=sorted([sum(j.num_ships for j in pw.enemy_fleets if j.destination==i) 
+                       for i in [p.id for p in pw.planets if p.owner!=2]])
+
   if len(enemy_fleets)>0:
-    mode_enemy_fleet=(enemy_fleet_mode+enemy_fleets[len(enemy_fleets)//2].num_ships)/2
+    mode_enemy_fleet=(enemy_fleet_mode+enemy_fleets[len(enemy_fleets)//2])/2
     enemy_fleet_size=mode_enemy_fleet
   else:
     mode_enemy_fleet=enemy_fleet_mode
