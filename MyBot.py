@@ -26,17 +26,33 @@ Philosophies:
 """
 from PlanetWars import PlanetWars, log, predict_state, Planet, Fleet, planet_distance_list
 
+game_started=False
+
+enemy_fleet_mode=1
+
 def do_turn(pw):
   log('planets: %s'%[p.num_ships for p in pw.my_planets])
   log('in air: %s'%sum(f.num_ships for f in pw.my_fleets))
 
+  # don't launch a fleet until the enemy does, to check their average size.
+  global game_started
+  if not game_started:
+    if len(pw.enemy_fleets)==0:
+      return
+    else:
+      game_started=True
+
   pw.new_fleets=set()
   pw_future=predict_state(pw,MAX_TURNS)
+
+  # figure out heuristically what fleet size the enemy is mostly using
+  global enemy_fleet_size
   enemy_fleets=sorted(pw.enemy_fleets,key=lambda x: x.num_ships)
   if len(enemy_fleets)>0:
-    mode_enemy_fleet=enemy_fleets[len(enemy_fleets)//2].num_ships
+    mode_enemy_fleet=(enemy_fleet_mode+enemy_fleets[len(enemy_fleets)//2].num_ships)/2
+    enemy_fleet_size=mode_enemy_fleet
   else:
-    mode_enemy_fleet=1
+    mode_enemy_fleet=enemy_fleet_mode
 
   # Give the planets some metadata
   for p in pw.planets:
